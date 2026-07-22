@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7EDE2">
+<title>Mi Negocio – POS</title>
+
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+
+<!-- ══ AUTH SCREEN ══ -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-icon">🏪</div>
+    <div class="auth-title" id="auth-shop-title">Mi Negocio</div>
+    <div class="auth-sub">Ingresa tu PIN para continuar</div>
+
+    <div class="auth-role-tabs">
+      <button class="auth-role-btn active" id="role-btn-admin" onclick="selectAuthRole('admin')">👑 Admin</button>
+      <button class="auth-role-btn" id="role-btn-vendor" onclick="selectAuthRole('vendor')">🛒 Vendedor</button>
+    </div>
+
+    <div id="auth-pin-section">
+      <div class="pin-display" id="pin-display">
+        <div class="pin-dot" id="pd-0"></div>
+        <div class="pin-dot" id="pd-1"></div>
+        <div class="pin-dot" id="pd-2"></div>
+        <div class="pin-dot" id="pd-3"></div>
+      </div>
+      <div class="auth-error" id="auth-error"></div>
+      <div class="pin-pad">
+        <button class="pin-key" onclick="pinKey('1')">1</button>
+        <button class="pin-key" onclick="pinKey('2')">2</button>
+        <button class="pin-key" onclick="pinKey('3')">3</button>
+        <button class="pin-key" onclick="pinKey('4')">4</button>
+        <button class="pin-key" onclick="pinKey('5')">5</button>
+        <button class="pin-key" onclick="pinKey('6')">6</button>
+        <button class="pin-key" onclick="pinKey('7')">7</button>
+        <button class="pin-key" onclick="pinKey('8')">8</button>
+        <button class="pin-key" onclick="pinKey('9')">9</button>
+        <button class="pin-key del" onclick="pinDel()">⌫</button>
+        <button class="pin-key" onclick="pinKey('0')">0</button>
+        <button class="pin-key enter" onclick="pinEnter()">✓</button>
+      </div>
+    </div>
+
+    <div id="auth-vendor-section" style="display:none">
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px;">
+        Acceso directo sin PIN para vendedor en ruta.
+      </p>
+      <button class="auth-vendor-btn" onclick="loginVendor()">Entrar como Vendedor →</button>
+    </div>
+  </div>
+</div>
+
+<header class="app-header">
+  <div class="header-brand">
+    <div class="brand-icon">🏪</div>
+    <div>
+      <div class="brand-name" id="shop-name-display">Mi Negocio</div>
+      <div class="brand-sub">Sistema de Venta</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="offline-pill" id="offline-pill">
+      <div class="offline-dot"></div> Sin conexión
+    </div>
+    <span class="role-badge" id="role-badge"></span>
+    <button class="logout-btn" onclick="logout()">Salir</button>
+  </div>
+</header>
+
+<!-- ══ NAV ══ -->
+<nav class="nav-bar">
+  <button class="nav-tab active" onclick="goTab('pos')">🧾 Venta</button>
+  <span class="nav-tab" onclick="goTab('acomodador')" id="tab-acomo"
+    📦 Acomodador
+    <span class="nav-badge" id="badge-acomo">0</span>
+  </button>
+  <button class="nav-tab" onclick="goTab('historial')">📊 Historial</button>
+  <button class="nav-tab" onclick="goTab('clientes')">👥 Clientes</button>
+  <button class="nav-tab admin-only" onclick="goTab('produccion')">🏭 Producción</button>
+  <button class="nav-tab admin-only" onclick="goTab('rutas')">🗺️ Rutas</button>
+  <button class="nav-tab admin-only" onclick="goTab('admin')">⚙️ Administrar</button>
+</nav>
+
+<!-- ════════════════════════════════════════════
+     PANEL: VENTA (POS)
+════════════════════════════════════════════ -->
+<section class="panel active" id="panel-pos">
+  <div class="panel-inner">
+
+    <!-- Products -->
+    <div class="products-section">
+      <div id="products-container"></div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <!-- Client -->
+      <div class="card">
+        <div class="client-wrap">
+          <label class="field-label" for="client-input">👤 Cliente (requerido)</label>
+          <div class="autocomplete-wrap">
+            <input class="text-input" id="client-input" type="text"
+                   placeholder="Nombre del cliente…" maxlength="60" autocomplete="off"
+                   oninput="onClientInput()" onblur="hideAC()">
+            <div class="autocomplete-list" id="ac-list" style="display:none"></div>
+          </div>
+          <div style="margin-top:8px;">
+            <label class="field-label" for="client-phone">📱 Teléfono WhatsApp (opcional)</label>
+            <input class="text-input" id="client-phone" type="tel"
+                   placeholder="527771234567" maxlength="20" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <!-- Order summary -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="ct-icon ct-teal">🛒</span> Pedido
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="clearOrder()">Limpiar</button>
+        </div>
+        <div class="order-list-wrap">
+          <div id="order-body"><p class="order-empty">Sin productos aún.</p></div>
+          <div class="total-bar">
+            <span class="total-label-txt">Total</span>
+            <span class="total-amount-txt" id="total-display">$0</span>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="btn btn-primary btn-block" id="btn-ticket" onclick="openTicketModal()" disabled>
+            🎫 Generar ticket
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     PANEL: ACOMODADOR
+════════════════════════════════════════════ -->
+<section class="panel" id="panel-acomodador">
+  <div class="panel-inner">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+      <div>
+        <h2 style="font-family:var(--font-display);font-size:1.3rem;color:var(--bark-dark);">Cola de pedidos</h2>
+        <p style="font-size:.8rem;color:var(--muted);margin-top:3px;">Los tickets aparecen aquí en tiempo real. Márcalos conforme los atiendes.</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="clearDone()">🧹 Limpiar completados</button>
+    </div>
+    <div class="stats-row" id="queue-stats"></div>
+    <div class="queue-list" id="queue-list"></div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     PANEL: HISTORIAL
+════════════════════════════════════════════ -->
+<section class="panel" id="panel-historial">
+  <div class="panel-inner">
+    <h2 style="font-family:var(--font-display);font-size:1.3rem;color:var(--bark-dark);margin-bottom:16px;">Historial de ventas</h2>
+
+    <div class="hist-toolbar">
+      <select class="hist-filter" id="hist-period-type" onchange="renderHistorial()">
+        <option value="all">Todo</option>
+        <option value="day">Por día</option>
+        <option value="week">Por semana</option>
+        <option value="month" selected>Por mes</option>
+        <option value="year">Por año</option>
+      </select>
+      <select class="hist-filter" id="hist-period-value" onchange="renderHistorial()">
+        <option value="">— Selecciona —</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="exportHistorialTXT()">📝 Exportar .txt</button>
+      <button class="btn btn-ghost btn-sm" onclick="purgeOldData()">🗑️ Purgar +3 meses</button>
+    </div>
+
+    <div class="hist-summary" id="hist-summary"></div>
+
+    <div class="hist-table-wrap">
+      <table class="hist-table">
+        <thead>
+          <tr>
+            <th>Folio</th><th>Fecha</th><th>Hora</th><th>Cliente</th>
+            <th>Productos</th><th>Total</th><th></th><th></th>
+          </tr>
+        </thead>
+        <tbody id="hist-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     PANEL: CLIENTES
+════════════════════════════════════════════ -->
+<section class="panel" id="panel-clientes">
+  <div class="panel-inner">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+      <div>
+        <h2 style="font-family:var(--font-display);font-size:1.3rem;color:var(--bark-dark);">Directorio de clientes</h2>
+        <p style="font-size:.8rem;color:var(--muted);margin-top:3px;">Se actualiza automáticamente con cada ticket generado.</p>
+      </div>
+      <button class="btn btn-teal btn-sm" onclick="openNewClientModal()">➕ Nuevo cliente</button>
+    </div>
+    <div class="clients-toolbar">
+      <input class="clients-search" id="clients-search" type="text"
+             placeholder="Buscar por nombre o teléfono…" oninput="renderClients()">
+    </div>
+    <div class="clients-grid" id="clients-grid"></div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     PANEL: ADMIN
+════════════════════════════════════════════ -->
+<section class="panel" id="panel-admin">
+  <div class="panel-inner">
+    <div class="admin-grid">
+
+      <!-- Precios y productos -->
+      <div>
+        <div class="admin-section-title">💰 Productos y precios</div>
+        <div class="price-list" id="price-list"></div>
+        <div style="margin-top:14px;">
+          <button class="btn btn-teal btn-sm btn-block" onclick="savePrices()">✓ Guardar cambios de precio</button>
+        </div>
+
+        <div style="margin-top:24px;">
+          <div class="admin-section-title">➕ Nuevo producto</div>
+          <div class="new-product-form">
+            <div class="form-row">
+              <input class="text-input" id="np-name" placeholder="Nombre del producto" style="flex:2">
+              <input class="price-inp-form" id="np-price" type="number" min="1" placeholder="$">
+            </div>
+            <div class="form-row">
+              <input class="text-input" id="np-cat" placeholder="Categoría (ej: Bebidas, Postres…)" style="flex:2">
+              <input class="text-input" id="np-promo" placeholder="Promo (opcional)" style="flex:1">
+            </div>
+            <button class="btn btn-amber btn-sm" onclick="addProduct()">➕ Agregar producto</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Configuración -->
+      <div>
+        <div class="admin-section-title">🏪 Configuración del negocio</div>
+
+        <div class="config-item">
+          <label class="field-label">Nombre de la tienda</label>
+          <input class="text-input" id="cfg-shop-name" placeholder="Nombre del negocio"
+          <p class="config-note">Aparece en el encabezado y en los tickets.</p>
+        </div>
+
+        <div class="config-item">
+          <label class="field-label">Slogan / tagline</label>
+          <input class="text-input" id="cfg-tagline" placeholder="Slogan del negocio">
+        </div>
+
+        <div class="config-item">
+          <label class="field-label">📱 Número WhatsApp (con lada, sin +)</label>
+          <input class="text-input" id="cfg-wsp" placeholder="527771234567" type="tel">
+          <p class="config-note">Los tickets se enviarán a este número como aviso.</p>
+        </div>
+
+        <div style="margin-top:8px;">
+          <button class="btn btn-primary btn-sm" onclick="saveConfig()">✓ Guardar configuración</button>
+        </div>
+
+        <div style="margin-top:24px;">
+          <div class="admin-section-title">🔐 Seguridad</div>
+          <div class="form-group">
+            <label class="field-label">Nuevo PIN de administrador (4 dígitos)</label>
+            <input class="text-input" id="pin-new" type="password" maxlength="4"
+                   placeholder="••••" inputmode="numeric" style="letter-spacing:6px">
+          </div>
+          <div class="form-group">
+            <label class="field-label">Confirmar PIN</label>
+            <input class="text-input" id="pin-confirm" type="password" maxlength="4"
+                   placeholder="••••" inputmode="numeric" style="letter-spacing:6px">
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="saveAdminPin()">✓ Actualizar PIN</button>
+        </div>
+
+        <div style="margin-top:24px;">
+          <div class="admin-section-title">🔧 Datos y mantenimiento</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <button class="btn btn-ghost btn-sm" onclick="exportAllData()">💾 Exportar base de datos (.json)</button>
+            <button class="btn btn-ghost btn-sm" onclick="showStorageInfo()">📦 Ver uso de almacenamiento</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════
+     PANEL: PRODUCCIÓN (admin only)
+════════════════════════════════════════════ -->
+<section class="panel" id="panel-produccion">
+  <div class="panel-inner">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+      <div>
+        <h2 style="font-family:var(--font-display);font-size:1.3rem;color:var(--bark-dark);">🏭 Producción e Inventario</h2>
+        <p style="font-size:.8rem;color:var(--muted);margin-top:3px;">Registra lotes producidos. El stock se actualiza automáticamente al vender.</p>
+      </div>
+    </div>
+
+    <!-- Stock actual -->
+    <div class="admin-section-title" style="margin-bottom:12px;">📦 Stock actual</div>
+    <div class="stock-grid" id="stock-grid"></div>
+
+    <!-- Registrar lote -->
+    <div class="lote-form">
+      <div class="lote-form-title">➕ Registrar lote de producción</div>
+      <div class="lote-items" id="lote-items-form"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-green btn-sm" onclick="saveLote()">✓ Guardar lote</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearLoteForm()">Limpiar</button>
+      </div>
+    </div>
+
+    <!-- Historial de lotes -->
+    <div class="admin-section-title" style="margin-bottom:12px;">📋 Historial de lotes</div>
+    <div class="lote-history" id="lote-history"></div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     PANEL: RUTAS (admin only)
+════════════════════════════════════════════ -->
+<section class="panel" id="panel-rutas">
+  <div class="panel-inner">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+      <div>
+        <h2 style="font-family:var(--font-display);font-size:1.3rem;color:var(--bark-dark);">🗺️ Rutas de distribución</h2>
+        <p style="font-size:.8rem;color:var(--muted);margin-top:3px;">Prepara el inventario de salida, asigna clientes y monitorea avance en tiempo real.</p>
+      </div>
+    </div>
+
+    <!-- Estado ruta activa -->
+    <div class="ruta-status-bar" id="ruta-status-bar">
+      <span class="ruta-status-none" id="ruta-status-txt">Sin ruta activa hoy.</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-teal btn-sm" id="btn-nueva-ruta" onclick="openNuevaRuta()">➕ Nueva ruta</button>
+        <button class="btn btn-amber btn-sm" id="btn-cerrar-ruta" style="display:none" onclick="cerrarRuta()">🔒 Cerrar ruta</button>
+      </div>
+    </div>
+
+    <!-- Inventario en ruta -->
+    <div id="ruta-inv-section" style="display:none">
+      <div class="admin-section-title" style="margin-bottom:10px;">📦 Inventario en ruta</div>
+      <div class="ruta-inv-grid" id="ruta-inv-grid"></div>
+
+      <div class="admin-section-title" style="margin:16px 0 10px;">👥 Clientes asignados</div>
+      <div class="client-visit-list" id="ruta-client-list"></div>
+    </div>
+
+    <!-- Historial rutas -->
+    <div style="margin-top:24px;">
+      <div class="admin-section-title" style="margin-bottom:12px;">📋 Rutas anteriores</div>
+      <div id="rutas-history"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     NUEVA RUTA MODAL
+════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-nueva-ruta">
+  <div class="modal-box" style="max-width:500px">
+    <div class="modal-head">
+      <span class="modal-title">Preparar nueva ruta</span>
+      <button class="modal-close" onclick="closeModal('modal-nueva-ruta')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="field-label">Vendedor</label>
+        <input class="text-input" id="nr-vendedor" placeholder="Nombre del vendedor">
+      </div>
+      <div class="form-group">
+        <label class="field-label">📦 Inventario de salida</label>
+        <div id="nr-inv-form"></div>
+      </div>
+      <div class="form-group">
+        <label class="field-label">👥 Clientes en esta ruta</label>
+        <div id="nr-clients-form" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-teal btn-sm" onclick="iniciarRuta()">🚀 Iniciar ruta</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-nueva-ruta')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     QR SCANNER OVERLAY
+════════════════════════════════════════════ -->
+<div class="qr-overlay" id="qr-overlay">
+  <div class="qr-viewport">
+    <video id="qr-video" playsinline autoplay muted></video>
+    <div class="qr-scan-line"></div>
+    <div class="qr-corner tl"></div>
+    <div class="qr-corner tr"></div>
+    <div class="qr-corner bl"></div>
+    <div class="qr-corner br"></div>
+  </div>
+  <div class="qr-label">Apunta al código QR del cliente</div>
+  <button class="qr-close-btn" onclick="closeQR()">Cerrar</button>
+</div>
+
+
+<!-- ══ QR CLIENTE MODAL ══ -->
+<div class="modal-overlay" id="modal-client-qr">
+  <div class="modal-box" style="max-width:380px">
+    <div class="modal-head">
+      <span class="modal-title" id="qr-modal-title">QR del cliente</span>
+      <button class="modal-close" onclick="closeModal('modal-client-qr')">✕</button>
+    </div>
+    <div class="modal-body" style="text-align:center">
+      <div id="qr-code-render" style="display:flex;justify-content:center;margin-bottom:12px;"></div>
+      <div id="qr-client-info" style="font-size:.82rem;color:var(--muted);line-height:1.7;"></div>
+      <div id="qr-code-string"
+           style="font-family:monospace;font-size:.7rem;background:var(--cream-100);
+                  border-radius:6px;padding:6px 10px;margin-top:10px;
+                  word-break:break-all;color:var(--bark);">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-amber btn-sm" onclick="printClientQRSheet()">🖨️ Imprimir hoja QR</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-client-qr')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ NEW CLIENT MODAL ══ -->
+<div class="modal-overlay" id="modal-new-client">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span class="modal-title" id="new-client-modal-title">Nuevo cliente</span>
+      <button class="modal-close" onclick="closeModal('modal-new-client')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="field-label">Nombre *</label>
+        <input class="text-input" id="nc-name" type="text" placeholder="Nombre completo" maxlength="60">
+      </div>
+      <div class="form-group">
+        <label class="field-label">📱 Teléfono WhatsApp (con lada, sin +)</label>
+        <input class="text-input" id="nc-phone" type="tel" placeholder="527771234567" maxlength="20">
+      </div>
+      <div class="form-group">
+        <label class="field-label">Nota (opcional)</label>
+        <input class="text-input" id="nc-note" type="text" placeholder="Dirección, referencia…" maxlength="80">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-teal btn-sm" onclick="saveNewClient()">✓ Guardar cliente</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-new-client')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CLIENT DETAIL MODAL ══ -->
+<div class="modal-overlay" id="modal-client-detail">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span class="modal-title" id="cd-title">Cliente</span>
+      <button class="modal-close" onclick="closeModal('modal-client-detail')">✕</button>
+    </div>
+    <div class="modal-body" id="cd-body"></div>
+    <div class="modal-footer" id="cd-footer"></div>
+  </div>
+</div>
+
+<!-- ══ TICKET MODAL ══ -->
+<div class="modal-overlay" id="modal-ticket">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span class="modal-title">Vista previa del ticket</span>
+      <button class="modal-close" onclick="closeTicketModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="print-area">
+        <div class="ticket-wrap" id="ticket-content"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary btn-sm" onclick="printTicket()">🖨️ Imprimir</button>
+      <button class="btn btn-teal btn-sm" onclick="downloadPDF()">📄 PDF</button>
+      <button class="btn btn-secondary btn-sm" onclick="downloadTXT()">📝 .txt</button>
+      <button class="btn btn-green btn-sm" onclick="sendWhatsApp('business')" title="Enviar al número del negocio">💬 WA Negocio</button>
+      <button class="btn btn-green btn-sm" id="btn-wsp-client" onclick="sendWhatsApp('client')" title="Enviar al teléfono del cliente" style="display:none">💬 WA Cliente</button>
+      <button class="btn btn-amber btn-sm" onclick="closeTicketModal()" title="Confirma el ticket y limpia el pedido">✓ Confirmar y cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HIST DETAIL MODAL ══ -->
+<div class="modal-overlay" id="modal-hist-detail">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span class="modal-title" id="hist-detail-title">Detalle del ticket</span>
+      <button class="modal-close" onclick="closeModal('modal-hist-detail')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="ticket-wrap" id="hist-detail-content"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary btn-sm" onclick="printHistDetail()">🖨️ Imprimir</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-hist-detail')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOASTS ══ -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- SW registered at bottom -->
+
+
+<!-- ══ FIREBASE SDK ══ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+
+<!-- ══ MÓDULOS DE LA APP (el orden importa: dependencias primero) ══ -->
+<script src="js/config.js"></script>
+<script src="js/state.js"></script>
+<script src="js/products.js"></script>
+<script src="js/tickets.js"></script>
+<script src="js/acomodador.js"></script>
+<script src="js/historial.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/clientes.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/produccion.js"></script>
+<script src="js/rutas.js"></script>
+<script src="js/gps.js"></script>
+<script src="js/qr-scanner.js"></script>
+<script src="js/navigation.js"></script>
+<script src="js/qr-generation.js"></script>
+<script src="js/helpers.js"></script>
+<script src="js/init.js"></script>
+<script src="js/sw-register.js"></script>
+</body>
+</html>
