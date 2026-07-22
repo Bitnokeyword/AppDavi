@@ -1,9 +1,0 @@
-{
-  "name": "AppDavi",
-  "version": "1.0.0",
-  "private": true,
-  "description": "POS mobile-first para negocio de distribución",
-  "scripts": {
-    "dev": "npx serve . -l 3000"
-  }
-}
