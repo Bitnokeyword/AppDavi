@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Panel Administrador - Firebase</title>
+    
+    <!-- ============================================ -->
+    <!-- 🔥 MANIFEST Y SERVICE WORKER                -->
+    <!-- ============================================ -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0a0f1e" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <!-- EmailJS para enviar correos -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+    <style>
+        :root {
+            --bg-primary: #0a0f1e;
+            --bg-secondary: #141b2d;
+            --bg-card: rgba(255, 255, 255, 0.05);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #e8edf5;
+            --text-secondary: #8aa3c9;
+            --accent: #4a7cf7;
+            --accent-glow: rgba(74, 124, 247, 0.3);
+            --gold: #ffd700;
+            --danger: #ff6b6b;
+            --success: #51cf66;
+            --warning: #ffd700;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --radius: 20px;
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--bg-secondary);
+            border-radius: 32px;
+            padding: 32px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .header-left .logo {
+            font-size: 2rem;
+            background: var(--accent);
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 16px var(--accent-glow);
+        }
+        .header-left h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #fff, #a0c4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            background: rgba(255, 215, 0, 0.15);
+            padding: 8px 18px;
+            border-radius: 60px;
+            color: var(--gold);
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .badge .dot {
+            width: 8px;
+            height: 8px;
+            background: #51cf66;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+
+        .badge-offline {
+            background: rgba(255, 107, 107, 0.15);
+            padding: 6px 14px;
+            border-radius: 60px;
+            color: var(--danger);
+            font-size: 0.75rem;
+            border: 1px solid rgba(255, 107, 107, 0.2);
+            display: none;
+        }
+        .badge-offline.show {
+            display: inline-block;
+        }
+
+        .badge-firebase {
+            background: rgba(255, 200, 0, 0.12);
+            padding: 6px 14px;
+            border-radius: 60px;
+            color: var(--gold);
+            font-size: 0.75rem;
+            border: 1px solid rgba(255, 200, 0, 0.2);
+        }
+
+        .btn-logout {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-color);
+            padding: 10px 22px;
+            border-radius: 60px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-logout:hover {
+            background: rgba(255, 70, 70, 0.12);
+            border-color: var(--danger);
+            color: var(--danger);
+            transform: translateY(-2px);
+        }
+
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(0.8);
+            }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            transition: var(--transition);
+        }
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+            box-shadow: 0 8px 24px var(--accent-glow);
+        }
+        .stat-card .stat-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .icon-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 24px 16px;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            transition: var(--transition);
+            text-align: center;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+        .icon-card:hover {
+            transform: translateY(-6px);
+            border-color: var(--accent);
+            box-shadow: 0 12px 32px var(--accent-glow);
+            background: rgba(74, 124, 247, 0.08);
+        }
+        .icon-card .icon {
+            font-size: 2.8rem;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .icon-card .label {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+        .icon-card .desc {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .table-section {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            margin-top: 24px;
+        }
+        .table-section .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .table-section .table-header h3 {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        .table-section table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table-section th {
+            text-align: left;
+            padding: 10px 12px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .table-section td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 0.9rem;
+        }
+        .table-section tr:hover td {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .status {
+            padding: 4px 12px;
+            border-radius: 60px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .status.success {
+            background: rgba(81, 207, 102, 0.15);
+            color: #51cf66;
+        }
+        .status.warning {
+            background: rgba(255, 200, 0, 0.15);
+            color: #ffd700;
+        }
+        .status.danger {
+            background: rgba(255, 107, 107, 0.15);
+            color: #ff6b6b;
+        }
+
+        /* ===== BACKUP SECTION ===== */
+        .backup-section {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 28px;
+        }
+
+        .backup-section .backup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .backup-section .backup-header h3 {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .backup-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .backup-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 18px 20px;
+            border: 1px solid var(--border-color);
+            transition: var(--transition);
+        }
+        .backup-card:hover {
+            border-color: var(--accent);
+            background: rgba(74, 124, 247, 0.05);
+        }
+        .backup-card .titulo {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+        .backup-card .desc {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+        }
+        .backup-card .btn-backup {
+            padding: 8px 20px;
+            border-radius: 60px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.85rem;
+        }
+        .backup-card .btn-backup.primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        .backup-card .btn-backup.primary:hover {
+            background: #5f8cff;
+            transform: translateY(-2px);
+        }
+        .backup-card .btn-backup.success {
+            background: var(--success);
+            color: #fff;
+        }
+        .backup-card .btn-backup.success:hover {
+            background: #63d976;
+            transform: translateY(-2px);
+        }
+        .backup-card .btn-backup.danger {
+            background: var(--danger);
+            color: #fff;
+        }
+        .backup-card .btn-backup.danger:hover {
+            background: #ff8787;
+            transform: translateY(-2px);
+        }
+        .backup-card .btn-backup.warning {
+            background: var(--warning);
+            color: #0a0f1e;
+        }
+        .backup-card .btn-backup.warning:hover {
+            background: #ffe44d;
+            transform: translateY(-2px);
+        }
+        .backup-card .btn-backup:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .backup-card .input-email {
+            width: 100%;
+            padding: 8px 14px;
+            border-radius: 60px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            font-size: 0.85rem;
+            outline: none;
+            margin-bottom: 8px;
+        }
+        .backup-card .input-email:focus {
+            border-color: var(--accent);
+        }
+        .backup-card .input-email::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .backup-status {
+            margin-top: 16px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            display: none;
+            font-size: 0.9rem;
+        }
+        .backup-status.show {
+            display: block;
+        }
+        .backup-status .fecha {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .alert {
+            padding: 12px 18px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            display: none;
+            font-size: 0.9rem;
+        }
+        .alert.show {
+            display: block;
+        }
+        .alert-success {
+            background: rgba(81, 207, 102, 0.12);
+            border: 1px solid rgba(81, 207, 102, 0.2);
+            color: var(--success);
+        }
+        .alert-danger {
+            background: rgba(255, 107, 107, 0.12);
+            border: 1px solid rgba(255, 107, 107, 0.2);
+            color: var(--danger);
+        }
+        .alert-info {
+            background: rgba(74, 124, 247, 0.12);
+            border: 1px solid rgba(74, 124, 247, 0.2);
+            color: var(--accent);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .loading-overlay.show {
+            display: flex;
+        }
+        .loading-overlay .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        .loading-overlay .texto {
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ===== OFFLINE BANNER ===== */
+        .offline-banner {
+            display: none;
+            background: rgba(255, 107, 107, 0.15);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            padding: 12px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            color: var(--danger);
+            text-align: center;
+        }
+        .offline-banner.show {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                padding: 16px;
+            }
+            .header-left h1 {
+                font-size: 1.4rem;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .icon-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .table-section {
+                overflow-x: auto;
+            }
+            .backup-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .icon-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .header-right {
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <span class="texto" id="loadingTexto">Procesando...</span>
+    </div>
+
+    <div class="dashboard">
+
+        <!-- HEADER -->
+        <div class="header">
+            <div class="header-left">
+                <div class="logo">⚙️</div>
+                <h1>Admin Panel</h1>
+            </div>
+            <div class="header-right">
+                <span class="badge-firebase">🔥 Firebase</span>
+                <span class="badge-offline" id="badgeOffline">📡 Offline</span>
+                <span class="badge">
+                    <span class="dot"></span>
+                    Admin · <strong id="adminName">Cargando...</strong>
+                </span>
+                <button class="btn-logout" id="logoutBtn">🚪 Salir</button>
+            </div>
+        </div>
+
+        <!-- OFFLINE BANNER -->
+        <div class="offline-banner" id="offlineBanner">
+            ⚠️ Estás sin conexión a internet. Los datos mostrados son de la última sesión.
+        </div>
+
+        <!-- STATS -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-label">👥 Usuarios</div>
+                <div class="stat-value" id="totalUsuarios">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">💰 Ventas</div>
+                <div class="stat-value" id="totalVentas">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">📦 Productos</div>
+                <div class="stat-value" id="totalProductos">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">📋 Cargas</div>
+                <div class="stat-value" id="totalCargas">0</div>
+            </div>
+        </div>
+
+        <!-- BACKUP SECTION -->
+        <div class="backup-section">
+            <div class="backup-header">
+                <h3>💾 Backup y Respaldo</h3>
+                <span style="font-size:0.8rem; color:var(--text-secondary);" id="ultimoBackup">Último backup: ---</span>
+            </div>
+
+            <div id="backupAlert" class="alert"></div>
+
+            <div class="backup-grid">
+                <!-- Backup Manual (JSON + CSV) -->
+                <div class="backup-card">
+                    <div class="titulo">📦 Backup Manual</div>
+                    <div class="desc">Exporta en JSON o CSV todas las colecciones</div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="btn-backup primary" id="btnBackupJSON">⬇️ JSON</button>
+                        <button class="btn-backup warning" id="btnBackupCSV">📊 CSV</button>
+                    </div>
+                </div>
+
+                <!-- Enviar por correo -->
+                <div class="backup-card">
+                    <div class="titulo">✉️ Enviar por Correo</div>
+                    <div class="desc">Envía el backup al correo del administrador</div>
+                    <input type="email" class="input-email" id="emailDestino" placeholder="admin@correo.com" value="admin@demo.com" />
+                    <button class="btn-backup success" id="btnEnviarEmail">📧 Enviar Backup</button>
+                </div>
+
+                <!-- Backup Automático -->
+                <div class="backup-card">
+                    <div class="titulo">⏰ Backup Automático</div>
+                    <div class="desc">Programa backups semanales o mensuales</div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="btn-backup success" id="btnBackupSemanal">📅 Semanal</button>
+                        <button class="btn-backup success" id="btnBackupMensual">📆 Mensual</button>
+                        <button class="btn-backup danger" id="btnBackupOff" style="display:none;">⏹ Desactivar</button>
+                    </div>
+                    <div style="margin-top:8px; font-size:0.8rem; color:var(--text-secondary);">
+                        Estado: <span id="estadoAutomatico">Inactivo</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="backup-status" id="backupStatus">
+                <div id="backupStatusMsg">✅ Último backup completado</div>
+                <div class="fecha" id="backupStatusFecha">---</div>
+            </div>
+        </div>
+
+        <!-- ICONOS -->
+        <div class="icon-grid">
+            <a href="#" class="icon-card" data-modulo="usuarios">
+                <span class="icon">👥</span>
+                <span class="label">Usuarios</span>
+                <span class="desc">Gestionar vendedores</span>
+            </a>
+            <a href="#" class="icon-card" data-modulo="reportes">
+                <span class="icon">📊</span>
+                <span class="label">Reportes</span>
+                <span class="desc">Estadísticas globales</span>
+            </a>
+            <a href="#" class="icon-card" data-modulo="ventas">
+                <span class="icon">🛒</span>
+                <span class="label">Ventas</span>
+                <span class="desc">Todas las transacciones</span>
+            </a>
+            <a href="#" class="icon-card" data-modulo="productos">
+                <span class="icon">📦</span>
+                <span class="label">Productos</span>
+                <span class="desc">Catálogo y stock</span>
+            </a>
+            <a href="#" class="icon-card" data-modulo="rutas">
+                <span class="icon">🗺️</span>
+                <span class="label">Rutas</span>
+                <span class="desc">Asignar zonas</span>
+            </a>
+            <a href="#" class="icon-card" data-modulo="configuracion">
+                <span class="icon">⚙️</span>
+                <span class="label">Configuración</span>
+                <span class="desc">Ajustes del sistema</span>
+            </a>
+        </div>
+
+<a href="pages/restaurar-backup.html" class="icon-card">
+    <span class="icon">🔄</span>
+    <span class="label">Restaurar</span>
+    <span class="desc">Recuperar backup</span>
+</a>
+        <!-- TABLA -->
+        <div class="table-section">
+            <div class="table-header">
+                <h3>📋 Ventas recientes</h3>
+                <a href="#" class="ver-todas" style="color:var(--accent);font-size:0.85rem;text-decoration:none;">Ver todas →</a>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Vendedor</th>
+                        <th>Producto</th>
+                        <th>Monto</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaVentas">
+                    <tr>
+                        <td colspan="5" style="text-align:center;color:var(--text-secondary);padding:20px;">
+                            ⏳ Cargando ventas...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <!-- Firebase Config -->
+    <script src="assets/js/firebase-config.js"></script>
+
+    <!-- ============================================ -->
+    <!-- 📦 SERVICE WORKER REGISTER                   -->
+    <!-- ============================================ -->
+    <script>
+        // Registrar Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    console.log('✅ Service Worker registrado');
+                    
+                    // Verificar estado de conexión
+                    function updateOnlineStatus() {
+                        const badge = document.getElementById('badgeOffline');
+                        const banner = document.getElementById('offlineBanner');
+                        if (!navigator.onLine) {
+                            badge.classList.add('show');
+                            banner.classList.add('show');
+                        } else {
+                            badge.classList.remove('show');
+                            banner.classList.remove('show');
+                        }
+                    }
+                    
+                    window.addEventListener('online', updateOnlineStatus);
+                    window.addEventListener('offline', updateOnlineStatus);
+                    updateOnlineStatus();
+                })
+                .catch(error => {
+                    console.error('❌ Error al registrar SW:', error);
+                });
+        }
+    </script>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ===== VERIFICAR SESIÓN =====
+            const userId = localStorage.getItem('userId');
+            const userRole = localStorage.getItem('userRole');
+            const userName = localStorage.getItem('userName') || 'Admin';
+
+            if (!userId || userRole !== 'admin') {
+                alert('⛔ Acceso no autorizado.');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            document.getElementById('adminName').textContent = userName;
+
+            // ============================================
+            // 📧 CONFIGURAR EMAILJS (Reemplaza con tus credenciales)
+            // ============================================
+            // Register en: https://www.emailjs.com/
+            // Obtén: SERVICE_ID, TEMPLATE_ID, PUBLIC_KEY
+            // ============================================
+            
+            const EMAILJS_CONFIG = {
+                SERVICE_ID: 'service_z476u3p',    // Reemplaza con tu Service ID
+                TEMPLATE_ID: 'template_1g6jhdn',   // Reemplaza con tu Template ID
+                PUBLIC_KEY: 'ZQq1mQnoZUAm2Rif9'   // Reemplaza con tu Public Key
+            };
+
+            // Inicializar EmailJS
+            if (typeof emailjs !== 'undefined') {
+                emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
+            }
+
+            // ===== ELEMENTOS =====
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const loadingTexto = document.getElementById('loadingTexto');
+            const backupAlert = document.getElementById('backupAlert');
+            const backupStatus = document.getElementById('backupStatus');
+            const backupStatusMsg = document.getElementById('backupStatusMsg');
+            const backupStatusFecha = document.getElementById('backupStatusFecha');
+            const ultimoBackup = document.getElementById('ultimoBackup');
+
+            const btnBackupJSON = document.getElementById('btnBackupJSON');
+            const btnBackupCSV = document.getElementById('btnBackupCSV');
+            const btnEnviarEmail = document.getElementById('btnEnviarEmail');
+            const emailDestino = document.getElementById('emailDestino');
+            const btnBackupSemanal = document.getElementById('btnBackupSemanal');
+            const btnBackupMensual = document.getElementById('btnBackupMensual');
+            const btnBackupOff = document.getElementById('btnBackupOff');
+            const estadoAutomatico = document.getElementById('estadoAutomatico');
+
+            // ===== VARIABLES DE ESTADO =====
+            let backupSemanalActivo = false;
+            let backupMensualActivo = false;
+            let intervalSemanal = null;
+            let intervalMensual = null;
+
+            // ===== FUNCIONES DE ALERTA =====
+
+            function mostrarAlerta(mensaje, tipo = 'success') {
+                backupAlert.textContent = mensaje;
+                backupAlert.className = `alert alert-${tipo} show`;
+                setTimeout(() => backupAlert.classList.remove('show'), 5000);
+            }
+
+            function mostrarStatus(mensaje, fecha = null) {
+                backupStatus.classList.add('show');
+                backupStatusMsg.textContent = mensaje;
+                if (fecha) {
+                    backupStatusFecha.textContent = `📅 ${fecha}`;
+                }
+            }
+
+            // ============================================
+            // 📦 FUNCIÓN PRINCIPAL DE BACKUP
+            // ============================================
+
+            async function obtenerDatosBackup() {
+                const colecciones = ['clientes', 'productos', 'ventas', 'cargas', 'usuarios'];
+                const datos = {};
+
+                for (const col of colecciones) {
+                    const snapshot = await db.collection(col).get();
+                    datos[col] = [];
+                    snapshot.forEach(doc => {
+                        datos[col].push({ id: doc.id, ...doc.data() });
+                    });
+                }
+
+                return {
+                    version: '1.0',
+                    fecha: new Date().toISOString(),
+                    colecciones: datos,
+                    totalRegistros: Object.values(datos).reduce((sum, arr) => sum + arr.length, 0)
+                };
+            }
+
+            async function realizarBackup(tipo = 'manual', formato = 'json') {
+                loadingOverlay.classList.add('show');
+                loadingTexto.textContent = `📦 Generando backup ${tipo}...`;
+
+                try {
+                    const data = await obtenerDatosBackup();
+
+                    if (formato === 'csv') {
+                        // Convertir a CSV
+                        const csv = convertirACSV(data);
+                        const blob = new Blob([csv], { type: 'text/csv' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        const fechaStr = new Date().toISOString().slice(0, 10);
+                        link.download = `backup_${fechaStr}_${new Date().getTime()}.csv`;
+                        link.href = url;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                    } else {
+                        // JSON
+                        const json = JSON.stringify(data, null, 2);
+                        const blob = new Blob([json], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        const fechaStr = new Date().toISOString().slice(0, 10);
+                        link.download = `backup_${fechaStr}_${new Date().getTime()}.json`;
+                        link.href = url;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                    }
+
+                    const fechaFormateada = new Date().toLocaleString('es-MX');
+                    ultimoBackup.textContent = `Último backup: ${fechaFormateada}`;
+                    localStorage.setItem('ultimoBackup', new Date().toISOString());
+
+                    mostrarAlerta(`✅ Backup ${tipo} completado.`, 'success');
+                    mostrarStatus(`✅ Backup ${tipo} completado`, fechaFormateada);
+
+                    loadingOverlay.classList.remove('show');
+                    return { success: true, data };
+
+                } catch (error) {
+                    console.error('❌ Error en backup:', error);
+                    loadingOverlay.classList.remove('show');
+                    mostrarAlerta(`❌ Error: ${error.message}`, 'danger');
+                    return { success: false, error: error.message };
+                }
+            }
+
+            // ============================================
+            // 📊 CONVERTIR A CSV
+            // ============================================
+
+            function convertirACSV(data) {
+                let csv = '';
+
+                for (const [coleccion, items] of Object.entries(data.colecciones)) {
+                    if (items.length === 0) continue;
+
+                    // Encabezados
+                    const headers = Object.keys(items[0]);
+                    csv += `\n--- ${coleccion.toUpperCase()} ---\n`;
+                    csv += headers.join(',') + '\n';
+
+                    // Datos
+                    items.forEach(item => {
+                        const row = headers.map(h => {
+                            let val = item[h] || '';
+                            if (typeof val === 'object') val = JSON.stringify(val);
+                            if (typeof val === 'string' && val.includes(',')) val = `"${val}"`;
+                            return val;
+                        });
+                        csv += row.join(',') + '\n';
+                    });
+                }
+
+                return csv;
+            }
+
+            // ============================================
+            // ✉️ ENVIAR POR CORREO
+            // ============================================
+
+            async function enviarBackupPorEmail() {
+                const email = emailDestino.value.trim();
+                if (!email) {
+                    mostrarAlerta('⚠️ Ingresa un correo electrónico.', 'danger');
+                    return;
+                }
+
+                loadingOverlay.classList.add('show');
+                loadingTexto.textContent = '✉️ Preparando correo...';
+
+                try {
+                    const data = await obtenerDatosBackup();
+                    const json = JSON.stringify(data, null, 2);
+
+                    // Verificar si EmailJS está disponible
+                    if (typeof emailjs === 'undefined') {
+                        // Fallback: descargar y mostrar mensaje
+                        const blob = new Blob([json], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.download = `backup_${new Date().toISOString().slice(0, 10)}.json`;
+                        link.href = url;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                        
+                        loadingOverlay.classList.remove('show');
+                        mostrarAlerta('📧 EmailJS no configurado. El backup se descargó localmente.', 'warning');
+                        return;
+                    }
+
+                    // Enviar con EmailJS
+                    const templateParams = {
+                        to_email: email,
+                        from_name: 'Sistema de Ventas',
+                        subject: `Backup del Sistema - ${new Date().toLocaleDateString('es-MX')}`,
+                        message: `Backup completado exitosamente.\nTotal de registros: ${data.totalRegistros}\nFecha: ${new Date().toLocaleString('es-MX')}\n\nEl archivo JSON se adjunta en este correo.`,
+                        backup_data: json
+                    };
+
+                    // 👇 Reemplaza con tu SERVICE_ID y TEMPLATE_ID
+                    await emailjs.send(
+                        EMAILJS_CONFIG.SERVICE_ID,
+                        EMAILJS_CONFIG.TEMPLATE_ID,
+                        templateParams
+                    );
+
+                    loadingOverlay.classList.remove('show');
+                    mostrarAlerta(`✅ Backup enviado a ${email}`, 'success');
+
+                } catch (error) {
+                    console.error('❌ Error al enviar correo:', error);
+                    loadingOverlay.classList.remove('show');
+                    mostrarAlerta(`❌ Error al enviar: ${error.message}`, 'danger');
+                }
+            }
+
+            // ============================================
+            // ⏰ BACKUP AUTOMÁTICO
+            // ============================================
+
+            function activarBackupAutomatico(tipo = 'semanal') {
+                if (tipo === 'semanal' && backupSemanalActivo) return;
+                if (tipo === 'mensual' && backupMensualActivo) return;
+
+                const ahora = new Date();
+                let proximo;
+
+                if (tipo === 'semanal') {
+                    const diasHastaDomingo = (7 - ahora.getDay()) % 7 || 7;
+                    proximo = new Date(ahora);
+                    proximo.setDate(proximo.getDate() + diasHastaDomingo);
+                    proximo.setHours(0, 0, 0, 0);
+
+                    const msHasta = proximo.getTime() - ahora.getTime();
+                    setTimeout(() => {
+                        realizarBackup('semanal', 'json');
+                        intervalSemanal = setInterval(() => {
+                            realizarBackup('semanal', 'json');
+                        }, 7 * 24 * 60 * 60 * 1000);
+                    }, msHasta);
+
+                    backupSemanalActivo = true;
+                } else {
+                    proximo = new Date(ahora);
+                    proximo.setMonth(proximo.getMonth() + 1);
+                    proximo.setDate(1);
+                    proximo.setHours(0, 0, 0, 0);
+
+                    const msHasta = proximo.getTime() - ahora.getTime();
+                    setTimeout(() => {
+                        realizarBackup('mensual', 'json');
+                        intervalMensual = setInterval(() => {
+                            realizarBackup('mensual', 'json');
+                        }, 30 * 24 * 60 * 60 * 1000);
+                    }, msHasta);
+
+                    backupMensualActivo = true;
+                }
+
+                estadoAutomatico.textContent = `✅ Activo (${tipo})`;
+                estadoAutomatico.style.color = '#51cf66';
+                btnBackupSemanal.style.display = 'none';
+                btnBackupMensual.style.display = 'none';
+                btnBackupOff.style.display = 'inline-block';
+
+                localStorage.setItem('backupAutomaticoActivo', 'true');
+                localStorage.setItem('backupAutomaticoTipo', tipo);
+
+                mostrarAlerta(`✅ Backup ${tipo} activado. Próximo: ${proximo.toLocaleDateString('es-MX')}`, 'info');
+            }
+
+            function desactivarBackupAutomatico() {
+                if (intervalSemanal) {
+                    clearInterval(intervalSemanal);
+                    intervalSemanal = null;
+                }
+                if (intervalMensual) {
+                    clearInterval(intervalMensual);
+                    intervalMensual = null;
+                }
+                backupSemanalActivo = false;
+                backupMensualActivo = false;
+
+                estadoAutomatico.textContent = '⏹ Inactivo';
+                estadoAutomatico.style.color = '#ff6b6b';
+                btnBackupSemanal.style.display = 'inline-block';
+                btnBackupMensual.style.display = 'inline-block';
+                btnBackupOff.style.display = 'none';
+
+                localStorage.setItem('backupAutomaticoActivo', 'false');
+                mostrarAlerta('⏹ Backup automático desactivado.', 'info');
+            }
+
+            // ============================================
+            // RESTAURAR ESTADO
+            // ============================================
+
+            function restaurarEstado() {
+                const activo = localStorage.getItem('backupAutomaticoActivo') === 'true';
+                if (activo) {
+                    const tipo = localStorage.getItem('backupAutomaticoTipo') || 'semanal';
+                    if (tipo === 'semanal') {
+                        activarBackupAutomatico('semanal');
+                    } else {
+                        activarBackupAutomatico('mensual');
+                    }
+                }
+
+                const ultimo = localStorage.getItem('ultimoBackup');
+                if (ultimo) {
+                    const fecha = new Date(ultimo);
+                    ultimoBackup.textContent = `Último backup: ${fecha.toLocaleString('es-MX')}`;
+                    mostrarStatus('✅ Backup previo encontrado', fecha.toLocaleString('es-MX'));
+                }
+            }
+
+            // ============================================
+            // EVENTOS
+            // ============================================
+
+            btnBackupJSON.addEventListener('click', () => realizarBackup('manual', 'json'));
+            btnBackupCSV.addEventListener('click', () => realizarBackup('manual', 'csv'));
+            btnEnviarEmail.addEventListener('click', enviarBackupPorEmail);
+
+            btnBackupSemanal.addEventListener('click', () => activarBackupAutomatico('semanal'));
+            btnBackupMensual.addEventListener('click', () => activarBackupAutomatico('mensual'));
+            btnBackupOff.addEventListener('click', desactivarBackupAutomatico);
+
+            // ============================================
+            // LOGOUT
+            // ============================================
+
+            document.getElementById('logoutBtn').addEventListener('click', async function() {
+                if (confirm('¿Cerrar sesión?')) {
+                    try {
+                        await auth.signOut();
+                        localStorage.clear();
+                        window.location.href = 'index.html';
+                    } catch (error) {
+                        console.error('❌ Error:', error);
+                    }
+                }
+            });
+
+            // ============================================
+            // ESTADÍSTICAS
+            // ============================================
+
+            async function cargarEstadisticas() {
+                try {
+                    const usuariosSnap = await db.collection('usuarios').get();
+                    document.getElementById('totalUsuarios').textContent = usuariosSnap.size;
+
+                    const productosSnap = await db.collection('productos').get();
+                    document.getElementById('totalProductos').textContent = productosSnap.size;
+
+                    const ventasSnap = await db.collection('ventas').get();
+                    document.getElementById('totalVentas').textContent = ventasSnap.size;
+
+                    const cargasSnap = await db.collection('cargas').get();
+                    document.getElementById('totalCargas').textContent = cargasSnap.size;
+
+                } catch (error) {
+                    console.error('❌ Error al cargar estadísticas:', error);
+                }
+            }
+
+            async function cargarVentasRecientes() {
+                try {
+                    const snapshot = await db.collection('ventas')
+                        .orderBy('fecha', 'desc')
+                        .limit(5)
+                        .get();
+
+                    const tbody = document.getElementById('tablaVentas');
+
+                    if (snapshot.empty) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="5" style="text-align:center;color:var(--text-secondary);padding:20px;">
+                                    📭 No hay ventas registradas aún.
+                                </td>
+                            </tr>
+                        `;
+                        return;
+                    }
+
+                    let html = '';
+                    snapshot.forEach((doc, index) => {
+                        const data = doc.data();
+                        const estado = data.estado || 'completado';
+                        const estadoClass = estado === 'completado' ? 'success' :
+                            estado === 'pendiente' ? 'warning' : 'danger';
+                        const estadoLabel = estado === 'completado' ? 'Completado' :
+                            estado === 'pendiente' ? 'Pendiente' : 'Cancelado';
+
+                        html += `
+                            <tr>
+                                <td>#${String(index + 1).padStart(4, '0')}</td>
+                                <td>${data.vendedorNombre || 'N/A'}</td>
+                                <td>${data.productos ? data.productos.length : 0} productos</td>
+                                <td>$${(data.totalPrecio || 0).toFixed(2)}</td>
+                                <td><span class="status ${estadoClass}">${estadoLabel}</span></td>
+                            </tr>
+                        `;
+                    });
+
+                    tbody.innerHTML = html;
+
+                } catch (error) {
+                    console.error('❌ Error al cargar ventas:', error);
+                }
+            }
+
+            // ============================================
+            // MÓDULOS
+            // ============================================
+
+            document.querySelectorAll('.icon-card').forEach(card => {
+                card.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const modulo = this.dataset.modulo;
+                    const nombres = {
+                        usuarios: '👥 Gestión de Usuarios',
+                        reportes: '📊 Reportes Globales',
+                        ventas: '🛒 Todas las Ventas',
+                        productos: '📦 Catálogo de Productos',
+                        rutas: '🗺️ Asignación de Rutas',
+                        configuracion: '⚙️ Configuración del Sistema'
+                    };
+                    alert(`🔹 Abriendo: ${nombres[modulo] || modulo}`);
+                });
+            });
+
+            // ============================================
+            // INICIALIZAR
+            // ============================================
+
+            cargarEstadisticas();
+            cargarVentasRecientes();
+            restaurarEstado();
+
+            // Escuchar cambios en tiempo real
+            db.collection('ventas').orderBy('fecha', 'desc').limit(5)
+                .onSnapshot(() => cargarVentasRecientes());
+
+            db.collection('usuarios').onSnapshot(() => cargarEstadisticas());
+            db.collection('productos').onSnapshot(() => cargarEstadisticas());
+            db.collection('ventas').onSnapshot(() => cargarEstadisticas());
+            db.collection('cargas').onSnapshot(() => cargarEstadisticas());
+
+            console.log('📌 Admin Panel con Backup (JSON, CSV, Email, SW) cargado.');
+            console.log('📌 Configura EmailJS en EMAILJS_CONFIG para enviar correos.');
+
+        })();
+    </script>
+</body>
+</html>

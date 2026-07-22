@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Restaurar Backup - Admin</title>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-primary: #0a0f1e;
+            --bg-secondary: #141b2d;
+            --bg-card: rgba(255, 255, 255, 0.05);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #e8edf5;
+            --text-secondary: #8aa3c9;
+            --accent: #4a7cf7;
+            --accent-glow: rgba(74, 124, 247, 0.3);
+            --gold: #ffd700;
+            --danger: #ff6b6b;
+            --success: #51cf66;
+            --warning: #ffd700;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --radius: 20px;
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--bg-secondary);
+            border-radius: 32px;
+            padding: 32px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .header-left .icon {
+            font-size: 2rem;
+            background: var(--danger);
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 16px rgba(255, 107, 107, 0.3);
+        }
+        .header-left h1 {
+            font-size: 1.6rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #fff, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .badge-firebase {
+            background: rgba(255, 200, 0, 0.12);
+            padding: 6px 14px;
+            border-radius: 60px;
+            color: var(--gold);
+            font-size: 0.75rem;
+            border: 1px solid rgba(255, 200, 0, 0.2);
+        }
+        .btn-volver {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-color);
+            padding: 8px 18px;
+            border-radius: 60px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.85rem;
+            text-decoration: none;
+        }
+        .btn-volver:hover {
+            background: rgba(255, 255, 255, 0.12);
+            transform: translateY(-2px);
+        }
+
+        /* ===== ALERTAS ===== */
+        .alert {
+            padding: 14px 18px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            display: none;
+            font-size: 0.95rem;
+            border: 1px solid transparent;
+        }
+        .alert.show {
+            display: block;
+        }
+        .alert-success {
+            background: rgba(81, 207, 102, 0.12);
+            border-color: rgba(81, 207, 102, 0.2);
+            color: var(--success);
+        }
+        .alert-danger {
+            background: rgba(255, 107, 107, 0.12);
+            border-color: rgba(255, 107, 107, 0.2);
+            color: var(--danger);
+        }
+        .alert-warning {
+            background: rgba(255, 215, 0, 0.12);
+            border-color: rgba(255, 215, 0, 0.2);
+            color: var(--warning);
+        }
+        .alert-info {
+            background: rgba(74, 124, 247, 0.12);
+            border-color: rgba(74, 124, 247, 0.2);
+            color: var(--accent);
+        }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* ===== FORMULARIO ===== */
+        .drop-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+        .drop-zone:hover {
+            border-color: var(--accent);
+            background: rgba(74, 124, 247, 0.05);
+        }
+        .drop-zone.dragover {
+            border-color: var(--success);
+            background: rgba(81, 207, 102, 0.05);
+        }
+        .drop-zone .icono {
+            font-size: 4rem;
+            display: block;
+            margin-bottom: 12px;
+        }
+        .drop-zone .texto {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+        .drop-zone .texto strong {
+            color: var(--text-primary);
+        }
+        .drop-zone .subtexto {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+
+        #inputArchivo {
+            display: none;
+        }
+
+        /* ===== PREVISUALIZACIÓN ===== */
+        .preview {
+            display: none;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 16px 20px;
+            border: 1px solid var(--border-color);
+            margin-top: 16px;
+        }
+        .preview.show {
+            display: block;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .preview-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+        }
+        .preview-item .label {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .preview-item .value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .preview-item .value.success {
+            color: var(--success);
+        }
+        .preview-item .value.danger {
+            color: var(--danger);
+        }
+        .preview-item .value.warning {
+            color: var(--warning);
+        }
+
+        /* ===== BOTONES ===== */
+        .btn {
+            padding: 12px 28px;
+            border-radius: 60px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 1rem;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 4px 16px var(--accent-glow);
+        }
+        .btn-primary:hover {
+            background: #5f8cff;
+            transform: translateY(-2px);
+        }
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+        }
+        .btn-success:hover {
+            background: #63d976;
+            transform: translateY(-2px);
+        }
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+        }
+        .btn-danger:hover {
+            background: #ff8787;
+            transform: translateY(-2px);
+        }
+        .btn-warning {
+            background: var(--warning);
+            color: #0a0f1e;
+        }
+        .btn-warning:hover {
+            background: #ffe44d;
+            transform: translateY(-2px);
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--accent);
+        }
+        .btn-block {
+            width: 100%;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        /* ===== LOADING ===== */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .loading-overlay.show {
+            display: flex;
+        }
+        .loading-overlay .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        .loading-overlay .texto {
+            color: #fff;
+            font-size: 1rem;
+        }
+        .loading-overlay .progreso {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ===== PROGRESS BAR ===== */
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 12px;
+            display: none;
+        }
+        .progress-bar.show {
+            display: block;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        .progress-bar .fill.success {
+            background: var(--success);
+        }
+        .progress-bar .fill.danger {
+            background: var(--danger);
+        }
+
+        .advertencia {
+            background: rgba(255, 107, 107, 0.08);
+            border: 1px solid rgba(255, 107, 107, 0.2);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-top: 16px;
+            color: var(--danger);
+            font-size: 0.9rem;
+        }
+        .advertencia strong {
+            display: block;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+        .advertencia ul {
+            margin: 8px 0 0 20px;
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+            }
+            .header-left h1 {
+                font-size: 1.2rem;
+            }
+            .preview-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .btn-group {
+                flex-direction: column;
+            }
+            .btn-group .btn {
+                width: 100%;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .preview-grid {
+                grid-template-columns: 1fr;
+            }
+            .drop-zone {
+                padding: 24px 16px;
+            }
+            .drop-zone .icono {
+                font-size: 3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <span class="texto" id="loadingTexto">🔄 Restaurando datos...</span>
+        <span class="progreso" id="loadingProgreso">Preparando...</span>
+        <div class="progress-bar show" id="progressBarGlobal">
+            <div class="fill" id="progressFillGlobal" style="width:0%;"></div>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <!-- HEADER -->
+        <div class="header">
+            <div class="header-left">
+                <div class="icon">🔄</div>
+                <h1>Restaurar Backup</h1>
+            </div>
+            <div class="header-right">
+                <span class="badge-firebase">🔥 Firebase</span>
+                <span class="badge-firebase" id="userNameBadge">👤 Admin</span>
+                <a href="../admin.html" class="btn-volver">← Volver</a>
+            </div>
+        </div>
+
+        <!-- ALERTAS -->
+        <div id="alertMessage" class="alert"></div>
+
+        <!-- CARD PRINCIPAL -->
+        <div class="card">
+            <div class="card-title">📤 Subir archivo de backup</div>
+
+            <!-- Drop Zone -->
+            <div class="drop-zone" id="dropZone">
+                <span class="icono">📁</span>
+                <div class="texto">
+                    Arrastra tu archivo <strong>JSON</strong> aquí o <strong>haz clic</strong> para seleccionarlo
+                </div>
+                <div class="subtexto">Solo archivos .json generados por el sistema de backup</div>
+                <input type="file" id="inputArchivo" accept=".json" />
+            </div>
+
+            <!-- Previsualización -->
+            <div class="preview" id="preview">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <span style="font-weight:600;" id="previewNombre">backup_2026-07-20.json</span>
+                    <span style="font-size:0.8rem; color:var(--text-secondary);" id="previewFecha">📅 ---</span>
+                </div>
+
+                <div class="preview-grid">
+                    <div class="preview-item">
+                        <div class="label">📦 Total registros</div>
+                        <div class="value success" id="previewTotal">0</div>
+                    </div>
+                    <div class="preview-item">
+                        <div class="label">📂 Colecciones</div>
+                        <div class="value" id="previewColecciones">0</div>
+                    </div>
+                    <div class="preview-item">
+                        <div class="label">📋 Clientes</div>
+                        <div class="value" id="previewClientes">0</div>
+                    </div>
+                    <div class="preview-item">
+                        <div class="label">📦 Productos</div>
+                        <div class="value" id="previewProductos">0</div>
+                    </div>
+                    <div class="preview-item">
+                        <div class="label">💰 Ventas</div>
+                        <div class="value" id="previewVentas">0</div>
+                    </div>
+                    <div class="preview-item">
+                        <div class="label">📋 Cargas</div>
+                        <div class="value" id="previewCargas">0</div>
+                    </div>
+                    <div class="preview-item">
+                        <div class="label">👥 Usuarios</div>
+                        <div class="value" id="previewUsuarios">0</div>
+                    </div>
+                    <div class="preview-item">
+                        <div class="label">📌 Versión</div>
+                        <div class="value warning" id="previewVersion">1.0</div>
+                    </div>
+                </div>
+
+                <!-- ADVERTENCIA -->
+                <div class="advertencia">
+                    <strong>⚠️ ADVERTENCIA</strong>
+                    <div>Esta acción SOBRESCRIBIRÁ los datos existentes en Firestore.</div>
+                    <ul>
+                        <li>Los datos actuales serán reemplazados</li>
+                        <li>Esta operación NO se puede deshacer</li>
+                        <li>Asegúrate de tener un backup reciente</li>
+                        <li>Solo el Administrador puede realizar esta acción</li>
+                    </ul>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-danger btn-block" id="btnRestaurar" disabled>
+                        ⚠️ Restaurar en Firestore
+                    </button>
+                    <button class="btn btn-outline" id="btnCancelar" style="flex:0.5;">
+                        🗑️ Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- INSTRUCCIONES -->
+        <div class="card" style="border-color: rgba(255,215,0,0.2);">
+            <div class="card-title">📋 Instrucciones</div>
+            <ol style="padding-left:20px; color:var(--text-secondary); line-height:1.8; font-size:0.95rem;">
+                <li>Selecciona un archivo <strong>.json</strong> generado por el sistema de backup</li>
+                <li>Revisa la previsualización para confirmar que los datos son correctos</li>
+                <li>Lee la advertencia y asegúrate de tener un backup actual</li>
+                <li>Haz clic en <strong>"Restaurar en Firestore"</strong> para iniciar el proceso</li>
+                <li>Espera a que finalice la restauración (puede tomar varios segundos)</li>
+            </ol>
+            <div style="margin-top:12px; padding:12px; background:rgba(255,255,255,0.03); border-radius:8px; font-size:0.85rem; color:var(--text-secondary);">
+                💡 <strong>Nota:</strong> La restauración utiliza <strong>merge: true</strong>, lo que significa que los documentos existentes se fusionan con los del backup.
+                Si un documento ya existe, se actualizarán sus campos. Si no existe, se creará.
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Firebase Config -->
+    <script src="../assets/js/firebase-config.js"></script>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ============================================
+            // VERIFICAR SESIÓN
+            // ============================================
+
+            const userId = localStorage.getItem('userId');
+            const userRole = localStorage.getItem('userRole');
+            const userName = localStorage.getItem('userName') || 'Admin';
+
+            if (!userId || userRole !== 'admin') {
+                alert('⛔ Acceso no autorizado. Solo el administrador puede restaurar backups.');
+                window.location.href = '../index.html';
+                return;
+            }
+
+            document.getElementById('userNameBadge').textContent = `👤 ${userName}`;
+
+     // ============================================
+            // ELEMENTOS DOM
+            // ============================================
+
+            const dropZone = document.getElementById('dropZone');
+            const inputArchivo = document.getElementById('inputArchivo');
+            const preview = document.getElementById('preview');
+            const alertMessage = document.getElementById('alertMessage');
+
+            const previewNombre = document.getElementById('previewNombre');
+            const previewFecha = document.getElementById('previewFecha');
+            const previewTotal = document.getElementById('previewTotal');
+            const previewColecciones = document.getElementById('previewColecciones');
+            const previewClientes = document.getElementById('previewClientes');
+            const previewProductos = document.getElementById('previewProductos');
+            const previewVentas = document.getElementById('previewVentas');
+            const previewCargas = document.getElementById('previewCargas');
+            const previewUsuarios = document.getElementById('previewUsuarios');
+            const previewVersion = document.getElementById('previewVersion');
+
+            const btnRestaurar = document.getElementById('btnRestaurar');
+            const btnCancelar = document.getElementById('btnCancelar');
+
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const loadingTexto = document.getElementById('loadingTexto');
+            const loadingProgreso = document.getElementById('loadingProgreso');
+            const progressFillGlobal = document.getElementById('progressFillGlobal');
+
+            let archivoCargado = null;
+            let datosBackup = null;
+
+            // ============================================
+            // FUNCIONES DE ALERTA
+            // ============================================
+
+            function mostrarAlerta(mensaje, tipo = 'success') {
+                alertMessage.textContent = mensaje;
+                alertMessage.className = `alert alert-${tipo} show`;
+                setTimeout(() => {
+                    alertMessage.classList.remove('show');
+                }, 6000);
+            }
+
+            // ============================================
+            // PROCESAR ARCHIVO
+            // ============================================
+
+            function procesarArchivo(file) {
+                const reader = new FileReader();
+
+                reader.onload = function(event) {
+                    try {
+                        const data = JSON.parse(event.target.result);
+
+                        // Validar estructura
+                        if (!data.colecciones || typeof data.colecciones !== 'object') {
+                            mostrarAlerta('❌ Archivo inválido. No contiene "colecciones".', 'danger');
+                            return;
+                        }
+
+                        datosBackup = data;
+
+                        // Calcular totales
+                        const colecciones = data.colecciones;
+                        const total = Object.values(colecciones).reduce((sum, arr) => sum + arr.length, 0);
+
+                        // Mostrar previsualización
+                        previewNombre.textContent = file.name;
+                        previewFecha.textContent = `📅 ${data.fecha ? new Date(data.fecha).toLocaleString('es-MX') : 'Fecha desconocida'}`;
+                        previewTotal.textContent = total;
+                        previewTotal.className = 'value success';
+
+                        const nombres = Object.keys(colecciones);
+                        previewColecciones.textContent = nombres.length;
+
+                        // Detalles por colección
+                        previewClientes.textContent = colecciones.clientes?.length || 0;
+                        previewProductos.textContent = colecciones.productos?.length || 0;
+                        previewVentas.textContent = colecciones.ventas?.length || 0;
+                        previewCargas.textContent = colecciones.cargas?.length || 0;
+                        previewUsuarios.textContent = colecciones.usuarios?.length || 0;
+                        previewVersion.textContent = data.version || '1.0';
+
+                        // Habilitar restauración
+                        btnRestaurar.disabled = false;
+                        preview.classList.add('show');
+
+                        archivoCargado = file;
+
+                        mostrarAlerta(`✅ Archivo cargado: ${total} registros en ${nombres.length} colecciones.`, 'success');
+
+                    } catch (error) {
+                        console.error('❌ Error al parsear JSON:', error);
+                        mostrarAlerta('❌ Archivo inválido. Asegúrate de que sea un JSON válido.', 'danger');
+                        preview.classList.remove('show');
+                        btnRestaurar.disabled = true;
+                        archivoCargado = null;
+                        datosBackup = null;
+                    }
+                };
+
+                reader.onerror = function() {
+                    mostrarAlerta('❌ Error al leer el archivo.', 'danger');
+                };
+
+                reader.readAsText(file);
+            }
+
+            // ============================================
+            // RESTAURAR DATOS
+            // ============================================
+
+            async function restaurarBackup() {
+                if (!datosBackup) {
+                    mostrarAlerta('⚠️ No hay datos para restaurar.', 'danger');
+                    return;
+                }
+
+                const colecciones = datosBackup.colecciones;
+                const totalRegistros = Object.values(colecciones).reduce((sum, arr) => sum + arr.length, 0);
+
+                // Confirmación final
+                const confirmacion = confirm(`
+        ⚠️ RESTAURACIÓN DE DATOS
+
+        📂 Colecciones: ${Object.keys(colecciones).join(', ')}
+        📦 Total registros: ${totalRegistros}
+        📅 Fecha backup: ${datosBackup.fecha ? new Date(datosBackup.fecha).toLocaleString('es-MX') : 'Desconocida'}
+
+        ⚠️ ADVERTENCIA:
+        - Los datos existentes en Firestore serán SOBRESCRITOS
+        - Esta acción NO se puede deshacer
+        - Asegúrate de tener un backup actual
+
+        ¿Continuar con la restauración?
+                `);
+
+                if (!confirmacion) return;
+
+                // Iniciar restauración
+                loadingOverlay.classList.add('show');
+                loadingTexto.textContent = '🔄 Restaurando datos en Firestore...';
+                progressFillGlobal.style.width = '0%';
+                progressFillGlobal.className = 'fill';
+
+                let procesados = 0;
+                let exitosos = 0;
+                let fallidos = 0;
+
+                try {
+                    const coleccionesNombres = Object.keys(colecciones);
+
+                    for (let idx = 0; idx < coleccionesNombres.length; idx++) {
+                        const nombre = coleccionesNombres[idx];
+                        const items = colecciones[nombre] || [];
+
+                        if (items.length === 0) continue;
+
+                        loadingProgreso.textContent = `📂 ${nombre} (${items.length} registros)`;
+
+                        // Batch para escritura eficiente
+                        const batch = db.batch();
+                        let batchCount = 0;
+
+                        for (const item of items) {
+                            try {
+                                const docRef = db.collection(nombre).doc(item.id);
+                                // Limpiar datos (eliminar campos que no deben ir)
+                                const cleanItem = { ...item };
+                                delete cleanItem.id;
+                                // Eliminar timestamps si existen (se regenerarán)
+                                delete cleanItem.creadoEn;
+                                delete cleanItem.actualizadoEn;
+                                delete cleanItem.fecha;
+
+                                batch.set(docRef, cleanItem, { merge: true });
+                                batchCount++;
+                                exitosos++;
+
+                                // Commit cada 450 escrituras
+                                if (batchCount >= 450) {
+                                    await batch.commit();
+                                    batchCount = 0;
+                                    procesados += 450;
+                                    const porcentaje = Math.round((procesados / totalRegistros) * 100);
+                                    progressFillGlobal.style.width = `${porcentaje}%`;
+                                    loadingProgreso.textContent =
+                                        `📊 ${procesados}/${totalRegistros} registros (${porcentaje}%)`;
+                                }
+                            } catch (error) {
+                                console.error(`❌ Error en ${nombre}/${item.id}:`, error);
+                                fallidos++;
+                            }
+                        }
+
+                        // Commit del último batch
+                        if (batchCount > 0) {
+                            await batch.commit();
+                            procesados += batchCount;
+                            const porcentaje = Math.min(Math.round((procesados / totalRegistros) * 100), 100);
+                            progressFillGlobal.style.width = `${porcentaje}%`;
+                            loadingProgreso.textContent = `📊 ${procesados}/${totalRegistros} registros (${porcentaje}%)`;
+                        }
+                    }
+/ Finalizar
+                    progressFillGlobal.className = 'fill success';
+                    loadingTexto.textContent = '✅ ¡Restauración completada!';
+                    loadingProgreso.textContent = `✅ ${exitosos} registros restaurados, ${fallidos} fallidos`;
+
+                    setTimeout(() => {
+                        loadingOverlay.classList.remove('show');
+                        mostrarAlerta(`✅ Restauración completada: ${exitosos} registros restaurados, ${fallidos} fallidos.`,
+                            'success');
+
+                        // Resetear
+                        archivoCargado = null;
+                        datosBackup = null;
+                        preview.classList.remove('show');
+                        btnRestaurar.disabled = true;
+                        inputArchivo.value = '';
+
+                    }, 1500);
+
+                } catch (error) {
+                    console.error('❌ Error en restauración:', error);
+                    progressFillGlobal.className = 'fill danger';
+                    loadingTexto.textContent = '❌ Error en la restauración';
+                    loadingProgreso.textContent = error.message;
+
+                    setTimeout(() => {
+                        loadingOverlay.classList.remove('show');
+                        mostrarAlerta(`❌ Error: ${error.message}`, 'danger');
+                    }, 2000);
+                }
+            }
+
+            // ============================================
+            // EVENTOS
+            // ============================================
+
+            // Click en drop zone → abrir selector
+            dropZone.addEventListener('click', function() {
+                inputArchivo.click();
+            });
+
+            // Drag & Drop
+            dropZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                this.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('dragover');
+
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type === 'application/json' || file.name.endsWith('.json')) {
+                        procesarArchivo(file);
+                    } else {
+                        mostrarAlerta('❌ Solo se aceptan archivos .json', 'danger');
+                    }
+                }
+            });
+
+            // Input file
+            inputArchivo.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    const file = this.files[0];
+                    if (file.type === 'application/json' || file.name.endsWith('.json')) {
+                        procesarArchivo(file);
+                    } else {
+                        mostrarAlerta('❌ Solo se aceptan archivos .json', 'danger');
+                    }
+                }
+            });
+
+            // Botón restaurar
+            btnRestaurar.addEventListener('click', restaurarBackup);
+
+            // Botón cancelar
+            btnCancelar.addEventListener('click', function() {
+                archivoCargado = null;
+                datosBackup = null;
+                preview.classList.remove('show');
+                btnRestaurar.disabled = true;
+                inputArchivo.value = '';
+                mostrarAlerta('🗑️ Restauración cancelada.', 'info');
+            });
+
+            // ============================================
+            // INICIALIZAR
+            // ============================================
+
+            console.log('📌 Módulo de Restauración de Backup cargado.');
+            console.log('📌 Selecciona un archivo JSON para restaurar datos en Firestore.');
+
+            // Cargar estado de conexión
+            if (!navigator.onLine) {
+                mostrarAlerta('⚠️ Estás sin conexión. La restauración requiere internet.', 'warning');
+            }
+
+        })();
+    </script>
+</body>
+</html>

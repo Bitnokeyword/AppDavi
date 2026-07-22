@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inicio de Sesión</title>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #0a0f1e;
+            --bg-secondary: #141b2d;
+            --text-primary: #e8edf5;
+            --text-secondary: #8aa3c9;
+            --accent: #4a7cf7;
+            --accent-glow: rgba(74, 124, 247, 0.3);
+            --success: #51cf66;
+            --danger: #ff6b6b;
+            --radius: 20px;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+        }
+
+        .login-container {
+            max-width: 460px;
+            width: 100%;
+            background: var(--bg-secondary);
+            border-radius: 32px;
+            padding: 40px 32px;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            text-align: center;
+        }
+
+        .login-container .logo {
+            font-size: 3.2rem;
+            margin-bottom: 8px;
+        }
+
+        .login-container h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #fff, #a0c4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 4px;
+        }
+
+        .login-container .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 28px;
+        }
+
+        .user-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .user-card {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: var(--radius);
+            padding: 24px 12px 20px;
+            cursor: pointer;
+            border: 2px solid rgba(255, 255, 255, 0.06);
+            transition: 0.3s ease;
+        }
+
+        .user-card:hover {
+            border-color: var(--accent);
+            background: rgba(74, 124, 247, 0.08);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px var(--accent-glow);
+        }
+
+        .user-card.selected {
+            border-color: var(--accent);
+            background: rgba(74, 124, 247, 0.15);
+        }
+
+        .user-card .avatar {
+            font-size: 3rem;
+            display: block;
+        }
+        .user-card .name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        .user-card .role {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px 20px;
+            border-radius: 60px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        .form-group input:focus {
+            border-color: var(--accent);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .form-group input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            border-radius: 60px;
+            border: none;
+            background: var(--accent);
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 4px 16px var(--accent-glow);
+            margin-top: 8px;
+        }
+
+        .login-btn:hover {
+            background: #5f8cff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px var(--accent-glow);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            color: var(--danger);
+            font-size: 0.9rem;
+            margin-top: 12px;
+            display: none;
+            background: rgba(255, 107, 107, 0.1);
+            padding: 10px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 107, 107, 0.2);
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            opacity: 0.5;
+        }
+
+        @media (max-width: 420px) {
+            .user-grid {
+                grid-template-columns: 1fr;
+            }
+            .login-container {
+                padding: 28px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">🔐</div>
+        <h1>Iniciar sesión</h1>
+        <p class="subtitle">Ingresa tus credenciales</p>
+
+        <!-- SELECTOR DE ROL -->
+        <div class="user-grid">
+            <div class="user-card selected" data-role="admin" data-email="admin@demo.com" data-pass="admin123">
+                <span class="avatar">👤</span>
+                <div class="name">Administrador</div>
+                <div class="role">Acceso total</div>
+            </div>
+            <div class="user-card" data-role="vendedor" data-email="vendedor@demo.com" data-pass="vende123">
+                <span class="avatar">🛒</span>
+                <div class="name">Vendedor</div>
+                <div class="role">Gestión de ventas</div>
+            </div>
+        </div>
+
+        <!-- FORMULARIO -->
+        <div class="form-group">
+            <label>📧 Correo electrónico</label>
+            <input type="email" id="emailInput" placeholder="ejemplo@correo.com" />
+        </div>
+
+        <div class="form-group">
+            <label>🔑 Contraseña</label>
+            <input type="password" id="passwordInput" placeholder="••••••••" />
+        </div>
+
+        <button class="login-btn" id="loginBtn">🚀 Ingresar</button>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div style="margin-top: 16px; font-size: 0.8rem; color: var(--text-secondary); opacity: 0.6;">
+            🔹 Demo: admin@demo.com / admin123
+            <br />
+            🔸 Demo: vendedor@demo.com / vende123
+        </div>
+
+        <div class="footer">Panel de control · Firebase 🔥</div>
+    </div>
+
+    <!-- Firebase Config -->
+    <script src="assets/js/firebase-config.js"></script>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ===== ELEMENTOS =====
+            const userCards = document.querySelectorAll('.user-card');
+            const emailInput = document.getElementById('emailInput');
+            const passwordInput = document.getElementById('passwordInput');
+            const loginBtn = document.getElementById('loginBtn');
+            const errorMessage = document.getElementById('errorMessage');
+
+            let selectedRole = 'admin';
+
+            // ===== SELECCIÓN DE USUARIO =====
+            userCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    userCards.forEach(c => c.classList.remove('selected'));
+                    this.classList.add('selected');
+                    
+                    selectedRole = this.dataset.role;
+                    emailInput.value = this.dataset.email || '';
+                    passwordInput.value = this.dataset.pass || '';
+                    
+                    errorMessage.classList.remove('show');
+                });
+            });
+
+            // ===== LOGIN CON FIREBASE =====
+            async function handleLogin() {
+                const email = emailInput.value.trim();
+                const password = passwordInput.value.trim();
+
+                if (!email || !password) {
+                    mostrarError('⚠️ Por favor, completa todos los campos.');
+                    return;
+                }
+
+                // Deshabilitar botón y mostrar loading
+                loginBtn.disabled = true;
+                loginBtn.innerHTML = '<span class="loading-spinner"></span> Verificando...';
+
+                try {
+                    // Autenticar con Firebase
+                    const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                    const user = userCredential.user;
+
+                    // Obtener rol del usuario desde Firestore
+                    const userDoc = await db.collection('usuarios').doc(user.uid).get();
+                    let userData = userDoc.data();
+
+                    // Si no existe, crear registro
+                    if (!userData) {
+                        const nombre = email.split('@')[0];
+                        await db.collection('usuarios').doc(user.uid).set({
+                            email: email,
+                            nombre: nombre,
+                            rol: selectedRole,
+                            activo: true,
+                            creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        userData = { rol: selectedRole, nombre: nombre };
+                    }
+
+                    // Guardar en localStorage
+                    localStorage.setItem('userRole', userData.rol);
+                    localStorage.setItem('userName', userData.nombre);
+                    localStorage.setItem('userId', user.uid);
+
+                    // Redirigir según rol
+                    const destino = userData.rol === 'admin' ? 'admin.html' : 'vendedor.html';
+                    window.location.href = destino;
+
+                } catch (error) {
+                    console.error('❌ Error de login:', error);
+                    
+                    let mensaje = '❌ Credenciales incorrectas. Verifica tu correo y contraseña.';
+                    if (error.code === 'auth/user-not-found') {
+                        mensaje = '❌ Usuario no encontrado. Verifica tu correo.';
+                    } else if (error.code === 'auth/wrong-password') {
+                        mensaje = '❌ Contraseña incorrecta. Intenta de nuevo.';
+                    } else if (error.code === 'auth/too-many-requests') {
+                        mensaje = '⏳ Demasiados intentos. Espera un momento.';
+                    }
+                    
+                    mostrarError(mensaje);
+                }
+
+                // Restaurar botón
+                loginBtn.disabled = false;
+                loginBtn.textContent = '🚀 Ingresar';
+            }
+
+            // ===== MOSTRAR ERROR =====
+            function mostrarError(mensaje) {
+                errorMessage.textContent = mensaje;
+                errorMessage.classList.add('show');
+            }
+
+            // ===== EVENTOS =====
+            loginBtn.addEventListener('click', handleLogin);
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleLogin();
+                }
+            });
+
+            // ===== SELECCIONAR ADMIN POR DEFECTO =====
+            document.querySelector('.user-card[data-role="admin"]')?.click();
+
+            // ===== VERIFICAR SESIÓN ACTIVA =====
+            const userId = localStorage.getItem('userId');
+            if (userId) {
+                const role = localStorage.getItem('userRole');
+                const destino = role === 'admin' ? 'admin.html' : 'vendedor.html';
+                // Si no estamos en index, redirigir
+                const currentPage = window.location.pathname.split('/').pop();
+                if (currentPage !== 'index.html' && currentPage !== '') {
+                    // Ya estamos en otra página, no hacer nada
+                } else {
+                    window.location.href = destino;
+                }
+            }
+
+        }
+    </script>
+</body>
+</html>
